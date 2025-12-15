@@ -4,12 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bot;
+use App\Models\BotLog;
+use App\Models\BotSignal;
 use App\Models\ExchangeAccount;
+use App\Models\Order;
 use App\Models\Strategy;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\Request;
 
 class BotController extends Controller
 {
+        use AuthorizesRequests, ValidatesRequests;
     public function index(Request $request)
     {
         return Bot::with(['exchangeAccount:id,name', 'strategy:id,name'])
@@ -64,7 +70,38 @@ class BotController extends Controller
         $this->authorize('view', $bot);
         return $bot->load(['exchangeAccount', 'strategy']);
     }
+public function loopData(Request $request, Bot $bot)
+{
 
+    $logsLimit = min((int) $request->get('logs', 50), 200);
+    $ordersLimit = min((int) $request->get('orders', 20), 100);
+    $signalsLimit = min((int) $request->get('signals', 20), 100);
+    $bot->load(['exchangeAccount:id,name', 'strategy:id,name']);
+
+    $logs = BotLog::where('bot_id', $bot->id)
+        ->orderByDesc('id')
+        ->limit($logsLimit)
+        ->get();
+
+    $orders = Order::where('bot_id', $bot->id)
+        ->orderByDesc('placed_at')
+        ->orderByDesc('id')
+        ->limit($ordersLimit)
+        ->get();
+
+    $signals = BotSignal::where('bot_id', $bot->id)
+        ->orderByDesc('signal_time')
+        ->orderByDesc('id')
+        ->limit($signalsLimit)
+        ->get();
+
+    return response()->json([
+        'bot' => $bot,
+        'logs' => $logs,
+        'orders' => $orders,
+        'signals' => $signals,
+    ]);
+}
     public function update(Request $request, Bot $bot)
     {
         $this->authorize('update', $bot);

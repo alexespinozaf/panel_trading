@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\BotController;
 use App\Http\Controllers\Api\ExchangeAccountController;
 use App\Http\Controllers\Api\StrategyController;
+use App\Models\Bot;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -28,10 +29,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/bots', function () {
         return Inertia::render('Bots/Index');
     })->name('bots.index');
+        Route::get('/bots/{bot}', function (Bot $bot) {
+        return Inertia::render('Bots/Show', [
+            'botId' => $bot->id,
+        ]);
+    })->name('bots.show');
      Route::prefix('api')->group(function () {
             Route::apiResource('exchange-accounts', ExchangeAccountController::class);
         Route::apiResource('strategies', StrategyController::class);
         Route::apiResource('bots', BotController::class);
+            Route::get('bots/{bot}/loop-data', [BotController::class, 'loopData']);
+
         // aquí después agregaremos strategies, bots, etc.
     });
 });
