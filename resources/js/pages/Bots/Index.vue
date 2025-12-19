@@ -72,7 +72,21 @@ const createBot = async () => {
         error.value = 'Error creando bot';
     }
 };
+const changingStatusId = ref<number | null>(null);
 
+const changeBotStatus = async (bot: Bot, action: 'start' | 'pause' | 'stop') => {
+    error.value = null;
+    changingStatusId.value = bot.id;
+    try {
+        await axios.post(`/api/bots/${bot.id}/${action}`);
+        await fetchAll(); // refresca la lista de bots
+    } catch (e) {
+        console.error(e);
+        error.value = 'Error cambiando estado del bot';
+    } finally {
+        changingStatusId.value = null;
+    }
+};
 onMounted(fetchAll);
 </script>
 
@@ -280,6 +294,11 @@ onMounted(fetchAll);
                                     >
                                         Estado
                                     </th>
+                                    <th
+    class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+>
+    Acciones
+</th>
                                       <th
                                         class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
                                     >
@@ -310,6 +329,29 @@ onMounted(fetchAll);
                                     <td class="px-4 py-2 text-sm text-gray-500">
                                         {{ b.status }}
                                     </td>
+                                    <td class="px-4 py-2 text-sm text-gray-500">
+    <button
+        class="mr-1 rounded bg-green-600 px-2 py-1 text-xs font-semibold text-white disabled:opacity-40"
+        :disabled="changingStatusId === b.id || b.status === 'running'"
+        @click="changeBotStatus(b, 'start')"
+    >
+        Iniciar
+    </button>
+    <button
+        class="mr-1 rounded bg-yellow-500 px-2 py-1 text-xs font-semibold text-white disabled:opacity-40"
+        :disabled="changingStatusId === b.id || b.status !== 'running'"
+        @click="changeBotStatus(b, 'pause')"
+    >
+        Pausar
+    </button>
+    <button
+        class="rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white disabled:opacity-40"
+        :disabled="changingStatusId === b.id || b.status === 'stopped'"
+        @click="changeBotStatus(b, 'stop')"
+    >
+        Detener
+    </button>
+</td>
                                     <td class="px-4 py-2 text-right text-sm">
                                         <Link
                                             :href="`/bots/${b.id}`"

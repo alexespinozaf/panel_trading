@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PositionResource;
 use App\Models\Bot;
 use App\Models\BotLog;
 use App\Models\BotSignal;
+use App\Models\BotTrade;
+use App\Models\Candle;
 use App\Models\ExchangeAccount;
 use App\Models\Order;
 use App\Models\Strategy;
@@ -102,6 +105,70 @@ public function loopData(Request $request, Bot $bot)
         'signals' => $signals,
     ]);
 }
+public function position(Bot $bot)
+{
+
+    $position = $bot->openPosition()->first();
+
+    if (! $position) {
+        return response()->json([
+            'position' => null,
+        ]);
+    }
+
+    // timeframe desde la estrategia (config JSON), default 15m
+    $strategy = $bot->strategy;
+    $timeframe = '15m';
+    if ($strategy && is_array($strategy->config) && isset($strategy->config['timeframe'])) {
+        $timeframe = $strategy->config['timeframe'];
+    }
+
+    // Última vela = precio actual
+    $lastCandle = Candle::query()
+        ->where('symbol', $position->symbol)
+        ->where('timeframe', $timeframe)
+        ->orderByDesc('open_time')
+        ->first();
+
+    $lastPrice = $lastCandle?->close;
+
+    $pnlGross = null;
+    $pnlNet = null;
+    $totalFees = null;
+
+    if ($lastPrice !== null) {
+        $qty   = (float) $position->quantity;
+        $entry = (float) $position->entry_price;
+        $last  = (float) $lastPrice;
+
+        if ($position->side === 'LONG') {
+            $pnlGross = ($last - $entry) * $qty;
+        } else {
+            // para futuro SHORT
+            $pnlGross = ($entry - $last) * $qty;
+        }
+
+        // fees desde que se abrió la posición
+        $totalFees = (float) BotTrade::query()
+            ->where('bot_id', $bot->id)
+            ->where('symbol', $position->symbol)
+            ->where('trade_time', '>=', $position->opened_at)
+            ->sum('fee');
+
+        $pnlNet = $pnlGross - $totalFees;
+    }
+
+    // 👇 atributos calculados (no columnas)
+    $position->last_price = $lastPrice;
+    $position->pnl_gross  = $pnlGross;
+    $position->pnl_net    = $pnlNet;
+    $position->total_fees = $totalFees;
+
+    return response()->json([
+        'position' => PositionResource::make($position),
+    ]);
+}
+
     public function update(Request $request, Bot $bot)
     {
         $this->authorize('update', $bot);
@@ -128,4 +195,40 @@ public function loopData(Request $request, Bot $bot)
 
         return response()->noContent();
     }
+    public function start(Bot $bot)
+{
+
+    if ($bot->status === 'running') {
+        return response()->json(['message' => 'Bot ya está en ejecución'], 409);
+    }
+
+    $bot->status = 'running';
+    $bot->save();
+
+    return response()->json($bot->fresh(['exchangeAccount', 'strategy']));
+}
+
+public function pause(Bot $bot)
+{
+
+    if ($bot->status !== 'running') {
+        return response()->json(['message' => 'Bot no está en ejecución'], 409);
+    }
+
+    $bot->status = 'paused';
+    $bot->save();
+
+    return response()->json($bot->fresh(['exchangeAccount', 'strategy']));
+}
+
+public function stop(Bot $bot)
+{
+
+    // aquí puedes también cerrar posición, etc. por ahora solo marcamos stopped
+    $bot->status = 'stopped';
+    $bot->save();
+
+    return response()->json($bot->fresh(['exchangeAccount', 'strategy']));
+}
+
 }

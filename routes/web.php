@@ -39,7 +39,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::apiResource('strategies', StrategyController::class);
         Route::apiResource('bots', BotController::class);
             Route::get('bots/{bot}/loop-data', [BotController::class, 'loopData']);
+                Route::get('bots/{bot}/position', [BotController::class, 'position']);
 
+Route::post('bots/{bot}/start', [BotController::class, 'start']);
+    Route::post('bots/{bot}/pause', [BotController::class, 'pause']);
+    Route::post('bots/{bot}/stop', [BotController::class, 'stop']);
         // aquí después agregaremos strategies, bots, etc.
     });
 });

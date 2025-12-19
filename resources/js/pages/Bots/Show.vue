@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/layouts/AppLayout.vue';
 import { Head } from '@inertiajs/vue3'
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount,computed } from 'vue'
 import axios from 'axios'
 
 import type { Bot, BotLoopData, BotLog, Order, BotSignal } from '@/types/trading'
+import type { Position } from '@/types/position'
 
 const props = defineProps<{
   botId: number
@@ -21,6 +22,28 @@ const lastUpdated = ref<string | null>(null)
 
 let intervalId: number | null = null
 
+const position = ref<Position | null>(null)
+const loadingPosition = ref(false)
+const positionError = ref<string | null>(null)
+
+async function fetchPosition() {
+  loadingPosition.value = true
+  positionError.value = null
+
+  try {
+    const { data } = await axios.get(`/api/bots/${props.botId}/position`)
+    position.value = data.position
+  } catch (e) {
+    console.log(e)
+    positionError.value = 'No se pudo cargar la posición actual'
+  } finally {
+    loadingPosition.value = false
+  }
+}
+const lastPrice = computed(() => position.value?.last_price ?? null)
+const pnlGross  = computed(() => position.value?.pnl_gross ?? 0)
+const pnlNet    = computed(() => position.value?.pnl_net ?? 0)
+const totalFees = computed(() => position.value?.total_fees ?? 0)
 const fetchLoopData = async () => {
   loading.value = true
   error.value = null
@@ -43,7 +66,8 @@ const fetchLoopData = async () => {
 
 onMounted(() => {
   fetchLoopData()
-  intervalId = window.setInterval(fetchLoopData, 5000) // refresca cada 5s
+   fetchPosition()
+  intervalId = window.setInterval(fetchLoopData, 15000) // refresca cada 5s
 })
 
 onBeforeUnmount(() => {
@@ -105,6 +129,7 @@ onBeforeUnmount(() => {
                 <div class="text-gray-500">Tamaño base (USD)</div>
                 <div class="font-medium">{{ bot.base_order_size ?? '—' }}</div>
               </div>
+              
             </div>
 
             <p v-if="error" class="mt-3 text-sm text-red-600">
@@ -112,6 +137,101 @@ onBeforeUnmount(() => {
             </p>
           </div>
         </div>
+   <!-- Card Posición actual -->
+<div class="bg-white rounded-xl shadow-sm p-4">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-sm font-semibold text-gray-700">
+      Posición actual
+    </h2>
+    <button
+      type="button"
+      class="text-xs text-gray-500 hover:text-gray-700"
+      @click="fetchPosition"
+    >
+      Refrescar
+    </button>
+  </div>
+
+  <div v-if="loadingPosition" class="text-sm text-gray-500">
+    Cargando posición...
+  </div>
+
+  <div v-else-if="positionError" class="text-sm text-red-500">
+    {{ positionError }}
+  </div>
+
+  <!-- 👇 aquí garantizamos que position NO es null -->
+  <div v-else-if="!position" class="text-sm text-gray-500">
+    Sin posición abierta.
+  </div>
+
+  <div v-else class="grid grid-cols-2 gap-4 text-sm">
+    <div>
+      <div class="text-xs text-gray-500">Símbolo</div>
+      <div class="font-medium">{{ position.symbol }}</div>
+    </div>
+
+    <div>
+      <div class="text-xs text-gray-500">Lado</div>
+      <div class="font-medium">
+        <span
+          :class="[
+            'px-2 py-0.5 rounded-full text-xs font-semibold',
+            position.side === 'LONG'
+              ? 'bg-emerald-100 text-emerald-700'
+              : 'bg-rose-100 text-rose-700'
+          ]"
+        >
+          {{ position.side }}
+        </span>
+      </div>
+    </div>
+
+    <div>
+      <div class="text-xs text-gray-500">Cantidad</div>
+      <div class="font-mono">{{ position.quantity }}</div>
+    </div>
+
+    <div>
+      <div class="text-xs text-gray-500">Precio entrada</div>
+      <div class="font-mono">{{ position.entry_price }}</div>
+    </div>
+
+    <div>
+      <div class="text-xs text-gray-500">Precio actual</div>
+      <div class="font-mono">
+        {{ position.last_price ?? '—' }}
+      </div>
+    </div>
+
+    <div>
+      <div class="text-xs text-gray-500">PnL bruto</div>
+      <div
+        class="font-mono"
+        :class="pnlGross > 0 ? 'text-emerald-600' : (pnlGross < 0 ? 'text-rose-600' : 'text-gray-700')"
+      >
+        {{ position.pnl_gross?.toFixed(4) ?? '—' }}
+      </div>
+    </div>
+
+    <div>
+      <div class="text-xs text-gray-500">Comisiones</div>
+      <div class="font-mono">
+        {{ position.total_fees?.toFixed(4) ?? '—' }} USDT
+      </div>
+    </div>
+
+    <div>
+      <div class="text-xs text-gray-500">PnL neto</div>
+      <div
+        class="font-mono"
+        :class="pnlNet > 0 ? 'text-emerald-700' : (pnlNet < 0 ? 'text-rose-700' : 'text-gray-700')"
+      >
+        {{ position.pnl_net?.toFixed(4) ?? '—' }}
+      </div>
+    </div>
+  </div>
+</div>
 
         <!-- LOGS -->
         <div class="bg-white shadow-sm sm:rounded-lg">

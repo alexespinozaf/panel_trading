@@ -66,4 +66,15 @@ public function signals()
 {
     return $this->hasMany(BotSignal::class);
 }
+public function positions()
+{
+    return $this->hasMany(Position::class);
+}
+
+public function openPosition()
+{
+    return $this->hasOne(Position::class)
+        ->where('status', 'OPEN')
+        ->latest('opened_at');
+}
 }
