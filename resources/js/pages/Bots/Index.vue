@@ -4,7 +4,6 @@ import type { ExchangeAccount } from '@/types/exchange';
 import type { Bot, Strategy } from '@/types/trading';
 import { Head } from '@inertiajs/vue3';
 import axios from 'axios';
-import { Route } from 'lucide-vue-next';
 import { onMounted, reactive, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 

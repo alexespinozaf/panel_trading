@@ -40,10 +40,8 @@ async function fetchPosition() {
     loadingPosition.value = false
   }
 }
-const lastPrice = computed(() => position.value?.last_price ?? null)
 const pnlGross  = computed(() => position.value?.pnl_gross ?? 0)
 const pnlNet    = computed(() => position.value?.pnl_net ?? 0)
-const totalFees = computed(() => position.value?.total_fees ?? 0)
 const fetchLoopData = async () => {
   loading.value = true
   error.value = null
@@ -233,59 +231,7 @@ onBeforeUnmount(() => {
   </div>
 </div>
 
-        <!-- LOGS -->
-        <div class="bg-white shadow-sm sm:rounded-lg">
-          <div class="p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-medium">Logs recientes</h3>
-              <span class="text-xs text-gray-500">Últimos {{ logs.length }} registros</span>
-            </div>
-
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200 text-xs">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Nivel</th>
-                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Código</th>
-                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Mensaje</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="log in logs" :key="log.id">
-                    <td class="px-3 py-2 whitespace-nowrap text-gray-500">
-                      {{ log.created_at }}
-                    </td>
-                    <td class="px-3 py-2 whitespace-nowrap">
-                      <span
-                        class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold"
-                        :class="{
-                          'bg-green-100 text-green-800': log.level === 'info',
-                          'bg-yellow-100 text-yellow-800': log.level === 'warning',
-                          'bg-red-100 text-red-800': log.level === 'error',
-                          'bg-gray-100 text-gray-800': !['info','warning','error'].includes(log.level)
-                        }"
-                      >
-                        {{ log.level }}
-                      </span>
-                    </td>
-                    <td class="px-3 py-2 whitespace-nowrap text-gray-500">
-                      {{ log.code ?? '—' }}
-                    </td>
-                    <td class="px-3 py-2 text-gray-900">
-                      {{ log.message }}
-                    </td>
-                  </tr>
-                  <tr v-if="logs.length === 0">
-                    <td colspan="4" class="px-3 py-4 text-center text-gray-500">
-                      Aún no hay logs para este bot.
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+     
 
         <!-- ÓRDENES -->
         <div class="bg-white shadow-sm sm:rounded-lg">
@@ -395,6 +341,59 @@ onBeforeUnmount(() => {
                   <tr v-if="signals.length === 0">
                     <td colspan="7" class="px-3 py-4 text-center text-gray-500">
                       Aún no hay señales registradas para este bot.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+           <!-- LOGS -->
+        <div class="bg-white shadow-sm sm:rounded-lg">
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-medium">Logs recientes</h3>
+              <span class="text-xs text-gray-500">Últimos {{ logs.length }} registros</span>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 text-xs">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Nivel</th>
+                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                    <th class="px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Mensaje</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr v-for="log in logs" :key="log.id">
+                    <td class="px-3 py-2 whitespace-nowrap text-gray-500">
+                      {{ log.created_at }}
+                    </td>
+                    <td class="px-3 py-2 whitespace-nowrap">
+                      <span
+                        class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold"
+                        :class="{
+                          'bg-green-100 text-green-800': log.level === 'info',
+                          'bg-yellow-100 text-yellow-800': log.level === 'warning',
+                          'bg-red-100 text-red-800': log.level === 'error',
+                          'bg-gray-100 text-gray-800': !['info','warning','error'].includes(log.level)
+                        }"
+                      >
+                        {{ log.level }}
+                      </span>
+                    </td>
+                    <td class="px-3 py-2 whitespace-nowrap text-gray-500">
+                      {{ log.code ?? '—' }}
+                    </td>
+                    <td class="px-3 py-2 text-gray-900">
+                      {{ log.message }}
+                    </td>
+                  </tr>
+                  <tr v-if="logs.length === 0">
+                    <td colspan="4" class="px-3 py-4 text-center text-gray-500">
+                      Aún no hay logs para este bot.
                     </td>
                   </tr>
                 </tbody>
