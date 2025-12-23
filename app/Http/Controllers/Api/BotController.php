@@ -11,7 +11,9 @@ use App\Models\BotTrade;
 use App\Models\Candle;
 use App\Models\ExchangeAccount;
 use App\Models\Order;
+use App\Models\Position;
 use App\Models\Strategy;
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\Request;
@@ -25,7 +27,79 @@ class BotController extends Controller
             ->where('user_id', $request->user()->id)
             ->get();
     }
+ public function stats(Bot $bot)
+    {
+        $this->authorize('view', $bot);
 
+        $bot->load('strategy');
+
+        // --- 1) Posición abierta ---
+        $position = Position::where('bot_id', $bot->id)
+            ->where('status', 'OPEN')
+            ->orderByDesc('opened_at')
+            ->first();
+
+        $pnl = null;
+
+        if ($position) {
+            // timeframe desde la estrategia
+            $config = $bot->strategy?->config ?? [];
+            // si config está guardado como string JSON, Laravel suele castear a array si definiste $casts
+            if (is_string($config)) {
+                $config = json_decode($config, true) ?: [];
+            }
+
+            $timeframe = $config['timeframe'] ?? '15m';
+
+            // última vela para ese símbolo/timeframe
+            $lastCandle = Candle::where('symbol', $bot->symbol)
+                ->where('timeframe', $timeframe)
+                ->orderByDesc('open_time')
+                ->first();
+
+            if ($lastCandle) {
+                $qty        = (float) $position->quantity;
+                $entryPrice = (float) $position->entry_price;
+                $lastPrice  = (float) $lastCandle->close;
+
+                $direction = in_array($position->side, ['LONG', 'BUY'], true) ? 1 : -1;
+                $entryNotional = $entryPrice * $qty;
+
+                $unrealizedPnl = ($lastPrice - $entryPrice) * $qty * $direction;
+                $unrealizedPnlPct = $entryNotional > 0
+                    ? ($unrealizedPnl / $entryNotional) * 100.0
+                    : 0.0;
+
+                $pnl = [
+                    'last_price'         => $lastCandle->close,
+                    'unrealized_pnl'     => round($unrealizedPnl, 4),
+                    'unrealized_pnl_pct' => round($unrealizedPnlPct, 2),
+                ];
+            }
+        }
+
+        // --- 2) PnL realizado: total y hoy ---
+        $today    = Carbon::today('UTC');
+        $tomorrow = $today->copy()->addDay();
+
+        // Ojo: ahora mismo el engine está guardando realized_pnl=0,
+        // pero dejamos esto listo para cuando calculemos PnL real.
+        $realizedTotal = (float) BotTrade::where('bot_id', $bot->id)
+            ->sum('realized_pnl');
+
+        $realizedToday = (float) BotTrade::where('bot_id', $bot->id)
+            ->whereBetween('trade_time', [$today, $tomorrow])
+            ->sum('realized_pnl');
+
+        return response()->json([
+            'position' => $position,
+            'pnl'      => $pnl,
+            'realized' => [
+                'total' => $realizedTotal,
+                'today' => $realizedToday,
+            ],
+        ]);
+    }
     public function store(Request $request)
     {
         $user = $request->user();

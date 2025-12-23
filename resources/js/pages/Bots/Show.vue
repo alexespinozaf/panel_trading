@@ -26,6 +26,11 @@ const position = ref<Position | null>(null)
 const loadingPosition = ref(false)
 const positionError = ref<string | null>(null)
 
+const position2 = ref<any | null>(null);
+const pnl = ref<any | null>(null);
+const realized = ref<any | null>(null);
+const loadingStats = ref(false);
+const statsError = ref<string | null>(null);
 async function fetchPosition() {
   loadingPosition.value = true
   positionError.value = null
@@ -61,9 +66,24 @@ const fetchLoopData = async () => {
     loading.value = false
   }
 }
-
+const fetchStats = async () => {
+  try {
+    loadingStats.value = true;
+    statsError.value = null;
+    const { data } = await axios.get(`/api/bots/${props.botId}/stats`);
+    position2.value = data.position;
+    pnl.value = data.pnl;
+    realized.value = data.realized;
+  } catch (e) {
+    console.error(e);
+    statsError.value = 'Error cargando stats del bot';
+  } finally {
+    loadingStats.value = false;
+  }
+};
 onMounted(() => {
   fetchLoopData()
+   fetchStats()
    fetchPosition()
   intervalId = window.setInterval(fetchLoopData, 15000) // refresca cada 5s
 })
@@ -135,6 +155,94 @@ onBeforeUnmount(() => {
             </p>
           </div>
         </div>
+        <!-- Ganancias-->
+         <div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+  <!-- PnL flotante -->
+  <div class="rounded-lg border bg-white p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-semibold text-gray-700">
+      PnL flotante
+    </h3>
+
+    <p v-if="loadingStats" class="text-xs text-gray-500">
+      Cargando stats...
+    </p>
+
+    <p v-else-if="!position" class="text-xs text-gray-500">
+      Sin posición abierta.
+    </p>
+
+    <div v-else>
+      <p class="text-sm text-gray-500">
+        Side:
+        <span
+          :class="['font-semibold', position.side === 'LONG' || position.side === 'BUY'
+            ? 'text-green-600'
+            : 'text-red-600']"
+        >
+          {{ position.side }}
+        </span>
+      </p>
+      <p class="text-sm text-gray-500">
+        Qty: <span class="font-mono">{{ position.quantity }}</span>
+      </p>
+      <p class="text-sm text-gray-500">
+        Entry: <span class="font-mono">{{ position.entry_price }}</span>
+      </p>
+
+      <div v-if="pnl" class="mt-3">
+        <p class="text-sm text-gray-500">
+          Último precio:
+          <span class="font-mono">{{ pnl.last_price }}</span>
+        </p>
+        <p class="text-sm">
+          PnL flotante:
+          <span
+            class="font-mono"
+            :class="pnl.unrealized_pnl >= 0 ? 'text-green-600' : 'text-red-600'"
+          >
+            {{ pnl.unrealized_pnl.toFixed(4) }} USDT
+            ({{ pnl.unrealized_pnl_pct.toFixed(2) }}%)
+          </span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PnL realizado -->
+  <div class="rounded-lg border bg-white p-4 shadow-sm">
+    <h3 class="mb-2 text-sm font-semibold text-gray-700">
+      PnL realizado
+    </h3>
+
+    <p v-if="!realized" class="text-xs text-gray-500">
+      Sin trades cerrados aún.
+    </p>
+    <div v-else>
+      <p class="text-sm text-gray-500">
+        Hoy:
+        <span
+          class="font-mono"
+          :class="realized.today >= 0 ? 'text-green-600' : 'text-red-600'"
+        >
+          {{ realized.today.toFixed(4) }} USDT
+        </span>
+      </p>
+      <p class="text-sm text-gray-500">
+        Total:
+        <span
+          class="font-mono"
+          :class="realized.total >= 0 ? 'text-green-600' : 'text-red-600'"
+        >
+          {{ realized.total.toFixed(4) }} USDT
+        </span>
+      </p>
+      <p class="mt-1 text-[11px] text-gray-400">
+        *Ahora mismo el motor guarda realized_pnl=0; cuando implementemos
+        cierre de posiciones verás aquí el resultado real.
+      </p>
+    </div>
+  </div>
+</div>
    <!-- Card Posición actual -->
 <div class="bg-white rounded-xl shadow-sm p-4">
   <div class="flex items-center justify-between mb-3">

@@ -44,6 +44,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::post('bots/{bot}/start', [BotController::class, 'start']);
     Route::post('bots/{bot}/pause', [BotController::class, 'pause']);
     Route::post('bots/{bot}/stop', [BotController::class, 'stop']);
+        Route::get('bots/{bot}/stats', [BotController::class, 'stats']);
+
         // aquí después agregaremos strategies, bots, etc.
     });
 });
